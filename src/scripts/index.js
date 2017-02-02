@@ -1,1 +1,1 @@
-document.write('Hello World!');
+export default data => data * 555
