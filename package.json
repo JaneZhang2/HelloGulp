@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "font-spider src/index.html"
+    "test": "",
+    "precommit": "echo \"todo...\""
   },
   "keywords": [],
   "author": "",
