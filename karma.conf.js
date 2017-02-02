@@ -1,7 +1,7 @@
 // Karma configuration
 // Generated on Thu Feb 02 2017 19:15:44 GMT+0800 (CST)
 
-module.exports = function(config) {
+module.exports = function (config) {
   config.set({
 
     // base path that will be used to resolve all patterns (eg. files, exclude)
@@ -10,7 +10,7 @@ module.exports = function(config) {
 
     // frameworks to use
     // available frameworks: https://npmjs.org/browse/keyword/karma-adapter
-    frameworks: ['mocha'],
+    frameworks: ['browserify', 'tap'],
 
 
     // list of files / patterns to load in the browser
@@ -20,13 +20,18 @@ module.exports = function(config) {
 
 
     // list of files to exclude
-    exclude: [
-    ],
+    exclude: [],
 
 
     // preprocess matching files before serving them to the browser
     // available preprocessors: https://npmjs.org/browse/keyword/karma-preprocessor
     preprocessors: {
+      'test/**/*.js': ['browserify']
+    },
+
+    browserify: {
+      debug: true,
+      transform: [["babelify", { "presets": ["es2015"] }]]
     },
 
 
