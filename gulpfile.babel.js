@@ -21,6 +21,9 @@ import express from 'express';
 import runSequence from 'run-sequence';
 import rev from 'gulp-rev';
 import revReplace from 'gulp-rev-replace';
+import mocha from 'gulp-mocha';
+import istanbul from 'gulp-istanbul';
+import plumber from 'gulp-plumber';
 
 const {env, noop} = util;
 const {environment = 'development'} = env;
@@ -102,6 +105,30 @@ gulp.task('build', () =>
   new Promise(resolve => runSequence('clean', ['images', 'fonts'], 'styles', 'scripts', 'views', resolve))
 );
 
+gulp.task('pre-test', function () {
+  return gulp.src(['**/*.js', '!**/templates/**'])
+    .pipe(excludeGitignore())
+    .pipe(istanbul({
+      includeUntested: true
+    }))
+    .pipe(istanbul.hookRequire());
+});
+
+gulp.task('test', ['pre-test'], function (cb) {
+  var mochaErr;
+
+  gulp.src('test/**/*.js')
+    .pipe(plumber())
+    .pipe(mocha({reporter: 'spec', timeout: 4000}))
+    .on('error', function (err) {
+      mochaErr = err;
+    })
+    .pipe(istanbul.writeReports())
+    .on('end', function () {
+      cb(mochaErr);
+    });
+});
+
 gulp.task('server', () => {
   const server = express();
   server.use(express.static('dist'));
@@ -116,4 +143,4 @@ gulp.task('watch', function () {
   gulp.watch('src/**/*.js', ['scripts']);
 });
 
-gulp.task('default', () => new Promise(resolve => runSequence(config.debug ? ['build','watch', 'server'] : 'build')));
+gulp.task('default', () => new Promise(resolve => runSequence(config.debug ? ['build', 'watch', 'server'] : 'build')));
