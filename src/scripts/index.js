@@ -1,3 +1,10 @@
 import jquery from 'jquery';
 
-export default data => data * 555
+export default  {
+  immediate: cb => {
+    cb('foo', 'bar');
+  },
+  debounce: cb => {
+    setTimeout(cb, 0)
+  }
+};
