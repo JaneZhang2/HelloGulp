@@ -21,9 +21,9 @@ import express from 'express';
 import runSequence from 'run-sequence';
 import rev from 'gulp-rev';
 import revReplace from 'gulp-rev-replace';
-import mocha from 'gulp-mocha';
-import istanbul from 'gulp-istanbul';
 import plumber from 'gulp-plumber';
+var browserify = require('gulp-browserify');
+import fs from 'fs'
 
 const {env, noop} = util;
 const {environment = 'development'} = env;
@@ -86,47 +86,49 @@ gulp.task('styles', () =>
     .pipe(config.debug ? browserSync.stream() : noop())
 );
 
-gulp.task('scripts', () =>
-  gulp.src('src/**/*.js')
-    .pipe(config.sourcemap ? sourcemaps.init() : noop())
-    .pipe(eslint())
-    .pipe(babel())
-    .pipe(config.minify ? uglify() : noop())
-    .pipe(config.md5 ? revReplace({manifest: gulp.src('dist/manifest.json')}) : noop())
-    .pipe(config.md5 ? rev() : noop())
-    .pipe(config.sourcemap ? sourcemaps.write('.') : noop())
-    .pipe(gulp.dest('dist'))
-    .pipe(config.md5 ? rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true}) : noop())
-    .pipe(config.md5 ? gulp.dest('dist') : noop())
-    .pipe(config.debug ? browserSync.stream() : noop())
-);
+// gulp.task('scripts', () =>
+//   gulp.src('src/**/*.js')
+//     .pipe(config.sourcemap ? sourcemaps.init() : noop())
+//     .pipe(eslint())
+//     .pipe(babel())
+//     .pipe(config.minify ? uglify() : noop())
+//     .pipe(config.md5 ? revReplace({manifest: gulp.src('dist/manifest.json')}) : noop())
+//     .pipe(config.md5 ? rev() : noop())
+//     .pipe(config.sourcemap ? sourcemaps.write('.') : noop())
+//     .pipe(gulp.dest('dist'))
+//     .pipe(config.md5 ? rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true}) : noop())
+//     .pipe(config.md5 ? gulp.dest('dist') : noop())
+//     .pipe(config.debug ? browserSync.stream() : noop())
+// );
 
 gulp.task('build', () =>
   new Promise(resolve => runSequence('clean', ['images', 'fonts'], 'styles', 'scripts', 'views', resolve))
 );
 
-gulp.task('pre-test', function () {
-  return gulp.src(['**/*.js', '!**/templates/**'])
-    .pipe(excludeGitignore())
-    .pipe(istanbul({
-      includeUntested: true
-    }))
-    .pipe(istanbul.hookRequire());
-});
+// gulp.task('pre-test', function () {
+//   return gulp.src(['**/*.js', '!**/templates/**'])
+//     .pipe(excludeGitignore())
+//     .pipe(istanbul({
+//       includeUntested: true
+//     }))
+//     .pipe(istanbul.hookRequire());
+// });
 
-gulp.task('test', ['pre-test'], function (cb) {
-  var mochaErr;
-
-  gulp.src('test/**/*.js')
-    .pipe(plumber())
-    .pipe(mocha({reporter: 'spec', timeout: 4000}))
-    .on('error', function (err) {
-      mochaErr = err;
+gulp.task('scripts', function () {
+  gulp.src('src/**/*.js')
+    .pipe(browserify({
+        transform: ['babelify']
+      }
+      //   {
+      //   insertGlobals : true,
+      //   debug : !gulp.env.production
+      // }
+    ))
+    .on('prebundle', function (bundle) {
+      bundle.require('jquery').bundle().pipe(fs.createWriteStream("dist/jquery.js"));
+      bundle.external('jquery');
     })
-    .pipe(istanbul.writeReports())
-    .on('end', function () {
-      cb(mochaErr);
-    });
+    .pipe(gulp.dest('./dist'))
 });
 
 // var Server = require('karma').Server;
