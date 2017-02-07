@@ -129,15 +129,6 @@ gulp.task('vendors', () =>
     .pipe(gulpif(config.debug, browserSync.stream()))
 );
 
-// gulp.task('pre-test', function () {
-//   return gulp.src(['**/*.js', '!**/templates/**'])
-//     .pipe(excludeGitignore())
-//     .pipe(istanbul({
-//       includeUntested: true
-//     }))
-//     .pipe(istanbul.hookRequire());
-// });
-
 gulp.task('test', function (done) {
   new Server({
     configFile: __dirname + '/karma.conf.js',
