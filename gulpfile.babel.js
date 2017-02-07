@@ -29,6 +29,9 @@ import exorcist from 'exorcist';
 import path from 'path';
 import runSequence from 'run-sequence';
 import {Server} from 'karma';
+import conventionalChangelog from 'gulp-conventional-changelog';
+
+//var conventionalChangelog = require('gulp-conventional-changelog');
 
 const {env} = util;
 const {environment = 'development'} = env;
@@ -152,6 +155,14 @@ gulp.task('watch', function () {
   gulp.watch('src/**/*.png', ['images']);
   gulp.watch('src/**/*.scss', ['styles']);
   gulp.watch('src/**/*.js', ['scripts']);
+});
+
+gulp.task('changelog', function () {
+  return gulp.src('CHANGELOG.md')
+    .pipe(conventionalChangelog({
+      // preset: 'angular'
+    }))
+    .pipe(gulp.dest('./'));
 });
 
 gulp.task('default', () => new Promise(resolve => runSequence('build', 'watch', 'server', resolve)));
