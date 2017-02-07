@@ -5,7 +5,6 @@ import autoprefixer from 'autoprefixer';
 import uglify from 'gulp-uglify';
 import imagemin from 'gulp-imagemin';
 import sourcemaps from 'gulp-sourcemaps';
-import babel from 'gulp-babel';
 import browserSync from 'browser-sync';
 import htmlmin from 'gulp-htmlmin';
 import eslint from 'gulp-eslint';
@@ -28,6 +27,8 @@ import buffer from 'vinyl-buffer';
 import {dependencies} from './package.json';
 import exorcist from 'exorcist';
 import path from 'path';
+import runSequence from 'run-sequence';
+import {Server} from 'karma';
 
 const {env} = util;
 const {environment = 'development'} = env;
@@ -137,30 +138,16 @@ gulp.task('vendors', () =>
 //     .pipe(istanbul.hookRequire());
 // });
 
-// var Server = require('karma').Server;
-//
-// /**
-//  * Run test once and exit
-//  */
-// gulp.task('test', function (done) {
-//   new Server({
-//     configFile: __dirname + '/karma.conf.js',
-//     singleRun: true
-//   }, done).start();
-// });
-//
-// /**
-//  * Watch for file changes and re-run tests on each change
-//  */
-// gulp.task('tdd', function (done) {
-//   new Server({
-//     configFile: __dirname + '/karma.conf.js'
-//   }, done).start();
-// });
-//
-// gulp.task('default', ['tdd']);
+gulp.task('test', function (done) {
+  new Server({
+    configFile: __dirname + '/karma.conf.js',
+    singleRun: true
+  }, done).start();
+});
 
-gulp.task('build', gulp.series('clean', gulp.parallel('images', 'fonts', 'vendors'), 'styles', 'scripts', 'views'));
+gulp.task('build', () =>
+  new Promise(resolve => runSequence('clean', 'images', 'fonts', 'vendors', 'styles', 'scripts', 'views', resolve))
+);
 
 gulp.task('server', () => {
   const server = express();
@@ -170,10 +157,10 @@ gulp.task('server', () => {
 });
 
 gulp.task('watch', function () {
-  gulp.watch('src/**/*.html', gulp.series('views'));
-  gulp.watch('src/**/*.png', gulp.series('images'));
-  gulp.watch('src/**/*.scss', gulp.series('styles'));
-  gulp.watch('src/**/*.js', gulp.series('scripts'));
+  gulp.watch('src/**/*.html', ['views']);
+  gulp.watch('src/**/*.png', ['images']);
+  gulp.watch('src/**/*.scss', ['styles']);
+  gulp.watch('src/**/*.js', ['scripts']);
 });
 
-gulp.task('default', gulp.series('build', gulp.parallel('watch', 'server')));
+gulp.task('default', () => new Promise(resolve => runSequence('build', 'watch', 'server', resolve)));
