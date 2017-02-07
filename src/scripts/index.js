@@ -1,3 +1,10 @@
 import jquery from 'jquery';
 
-document.write('hello world!');
+export default  {
+  immediate: cb => {
+    cb('foo', 'bar');
+  },
+  debounce: cb => {
+    setTimeout(cb, 0)
+  }
+};

@@ -32,8 +32,6 @@ import {Server} from 'karma';
 import conventionalChangelog from 'gulp-conventional-changelog';
 var bump = require('gulp-bump');
 
-//var conventionalChangelog = require('gulp-conventional-changelog');
-
 const {env} = util;
 const {environment = 'development'} = env;
 const config = require(`./configs/${environment}`);
