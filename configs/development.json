@@ -1,6 +1,6 @@
 {
   "minify": false,
-  "md5": false,
+  "revision": false,
   "debug": true,
   "sourcemap": true
 }

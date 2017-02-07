@@ -18,14 +18,18 @@ import imageInliner from 'postcss-image-inliner';
 import sprites from 'postcss-sprites';
 import htmllint from 'gulp-htmllint';
 import express from 'express';
-import runSequence from 'run-sequence';
 import rev from 'gulp-rev';
 import revReplace from 'gulp-rev-replace';
 import plumber from 'gulp-plumber';
-var browserify = require('gulp-browserify');
-import fs from 'fs'
+import browserify from 'browserify';
+import gulpif from 'gulp-if';
+import source from 'vinyl-source-stream';
+import buffer from 'vinyl-buffer';
+import {dependencies} from './package.json';
+import exorcist from 'exorcist';
+import path from 'path';
 
-const {env, noop} = util;
+const {env} = util;
 const {environment = 'development'} = env;
 const config = require(`./configs/${environment}`);
 
@@ -37,72 +41,91 @@ gulp.task('clean', () =>
 gulp.task('views', () =>
   gulp.src('src/**/*.html')
     .pipe(htmllint())
-    .pipe(config.minify ? htmlmin({collapseWhitespace: true}) : noop())
-    .pipe(config.md5 ? revReplace({manifest: gulp.src('dist/manifest.json')}) : noop())
+    .pipe(gulpif(config.minify, htmlmin({collapseWhitespace: true})))
+    .pipe(gulpif(config.revision, revReplace({manifest: gulp.src('dist/manifest.json')})))
     .pipe(gulp.dest('dist'))
-    .pipe(config.debug ? browserSync.stream() : noop())
+    .pipe(gulpif(config.debug, browserSync.stream()))
 );
 
 gulp.task('images', () =>
-  gulp.src(config.minify ? 'src/**/sprite.png' : ['src/**/*.png', '!src/**/sprite.png'])
-    .pipe(config.minify ? imagemin() : noop())
-    .pipe(config.md5 ? rev() : noop())
+  gulp.src('src/**/sprite.png')
+    .pipe(gulpif(config.minify, imagemin()))
+    .pipe(gulpif(config.revision, rev()))
     .pipe(gulp.dest('dist'))
-    .pipe(config.md5 ? rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true}) : noop())
-    .pipe(config.md5 ? gulp.dest('dist') : noop())
-    .pipe(config.debug ? browserSync.stream() : noop())
+    .pipe(gulpif(config.revision, rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true})))
+    .pipe(gulpif(config.revision, gulp.dest('dist')))
+    .pipe(gulpif(config.debug, browserSync.stream()))
 );
 
 gulp.task('fonts', () =>
   gulp.src('src/**/*.{eot,svg,ttf,woff,woff2}')
     .pipe(gulp.dest('dist'))
-    .pipe(config.md5 ? rev() : noop())
+    .pipe(gulpif(config.revision, rev()))
     .pipe(gulp.dest('dist'))
-    .pipe(config.md5 ? rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true}) : noop())
-    .pipe(config.md5 ? gulp.dest('dist') : noop())
-    .pipe(config.debug ? browserSync.stream() : noop())
+    .pipe(gulpif(config.revision, rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true})))
+    .pipe(gulpif(config.revision, gulp.dest('dist')))
+    .pipe(gulpif(config.debug, browserSync.stream()))
 );
 
 gulp.task('styles', () =>
   gulp.src('src/**/*.scss')
-    .pipe(config.sourcemap ? sourcemaps.init() : noop())
+    .pipe(gulpif(config.sourcemap, sourcemaps.init()))
     .pipe(postcss([stylelint(), reporter()], {syntax: syntax_scss}))
     .pipe(sass({outputStyle: config.minify ? 'compressed' : 'nested'}).on('error', sass.logError))
     .pipe(postcss([autoprefixer()]))
-    .pipe(config.minify ? postcss([
-        imageInliner({assetPaths: ['src']}),
-        sprites({
-          basePath: 'src',
-          stylesheetPath: 'src/styles',
-          spritePath: 'src/images'
-        })
-      ]) : noop())
-    .pipe(config.md5 ? revReplace({manifest: gulp.src('dist/manifest.json')}) : noop())
-    .pipe(config.md5 ? rev() : noop())
-    .pipe(config.sourcemap ? sourcemaps.write('.') : noop())
+    .pipe(postcss([
+      imageInliner({assetPaths: ['src']}),
+      sprites({
+        basePath: 'src',
+        stylesheetPath: 'src/styles',
+        spritePath: 'src/images'
+      })
+    ]))
+    .pipe(gulpif(config.revision, revReplace({manifest: gulp.src('dist/manifest.json')})))
+    .pipe(gulpif(config.revision, rev()))
+    .pipe(gulpif(config.sourcemap, sourcemaps.write('.')))
     .pipe(gulp.dest('dist'))
-    .pipe(config.md5 ? rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true}) : noop())
-    .pipe(config.md5 ? gulp.dest('dist') : noop())
-    .pipe(config.debug ? browserSync.stream() : noop())
+    .pipe(gulpif(config.revision, rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true})))
+    .pipe(gulpif(config.revision, gulp.dest('dist')))
+    .pipe(gulpif(config.debug, browserSync.stream()))
 );
 
-// gulp.task('scripts', () =>
-//   gulp.src('src/**/*.js')
-//     .pipe(config.sourcemap ? sourcemaps.init() : noop())
-//     .pipe(eslint())
-//     .pipe(babel())
-//     .pipe(config.minify ? uglify() : noop())
-//     .pipe(config.md5 ? revReplace({manifest: gulp.src('dist/manifest.json')}) : noop())
-//     .pipe(config.md5 ? rev() : noop())
-//     .pipe(config.sourcemap ? sourcemaps.write('.') : noop())
-//     .pipe(gulp.dest('dist'))
-//     .pipe(config.md5 ? rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true}) : noop())
-//     .pipe(config.md5 ? gulp.dest('dist') : noop())
-//     .pipe(config.debug ? browserSync.stream() : noop())
-// );
+gulp.task('eslint', () =>
+  gulp.src('src/**/*.js')
+    .pipe(eslint())
+    .pipe(eslint.format())
+    .pipe(eslint.failAfterError())
+);
 
-gulp.task('build', () =>
-  new Promise(resolve => runSequence('clean', ['images', 'fonts'], 'styles', 'scripts', 'views', resolve))
+gulp.task('scripts', () =>
+  browserify('src/scripts/index.js', {debug: config.debug, transform: 'babelify'})
+    .external(Object.keys(dependencies))
+    .bundle()
+    .pipe(exorcist(path.join(__dirname, 'dist/scripts/bundle.js.map')))
+    .pipe(source('scripts/bundle.js')) // gives streaming vinyl file object
+    .pipe(buffer()) // <----- convert from streaming to buffered vinyl file object
+    .pipe(gulpif(!config.debug, uglify())) // now gulp-uglify works
+    .pipe(gulpif(config.revision, revReplace({manifest: gulp.src('dist/manifest.json')})))
+    .pipe(gulpif(config.revision, rev()))
+    .pipe(gulp.dest('dist'))
+    .pipe(gulpif(config.revision, rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true})))
+    .pipe(gulpif(config.revision, gulp.dest('dist')))
+    .pipe(gulpif(config.debug, browserSync.stream()))
+);
+
+gulp.task('vendors', () =>
+  browserify()
+    .require(Object.keys(dependencies))
+    .bundle()
+    .pipe(source('scripts/vendors.js')) // gives streaming vinyl file object
+    .pipe(buffer()) // <----- convert from streaming to buffered vinyl file object
+    .pipe(gulpif(!config.debug, uglify())) // now gulp-uglify works
+    .pipe(gulpif(config.revision, revReplace({manifest: gulp.src('dist/manifest.json')})))
+    .pipe(gulpif(config.revision, rev()))
+    .pipe(gulp.dest('dist'))
+    .pipe(gulpif(config.revision, rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true})))
+    .pipe(gulpif(config.revision, gulp.dest('dist')))
+    .pipe(gulpif(config.debug, browserSync.stream()))
 );
 
 // gulp.task('pre-test', function () {
@@ -113,23 +136,6 @@ gulp.task('build', () =>
 //     }))
 //     .pipe(istanbul.hookRequire());
 // });
-
-gulp.task('scripts', function () {
-  gulp.src('src/**/*.js')
-    .pipe(browserify({
-        transform: ['babelify']
-      }
-      //   {
-      //   insertGlobals : true,
-      //   debug : !gulp.env.production
-      // }
-    ))
-    .on('prebundle', function (bundle) {
-      bundle.require('jquery').bundle().pipe(fs.createWriteStream("dist/jquery.js"));
-      bundle.external('jquery');
-    })
-    .pipe(gulp.dest('./dist'))
-});
 
 // var Server = require('karma').Server;
 //
@@ -154,6 +160,8 @@ gulp.task('scripts', function () {
 //
 // gulp.task('default', ['tdd']);
 
+gulp.task('build', gulp.series('clean', gulp.parallel('images', 'fonts', 'vendors'), 'styles', 'scripts', 'views'));
+
 gulp.task('server', () => {
   const server = express();
   server.use(express.static('dist'));
@@ -162,10 +170,10 @@ gulp.task('server', () => {
 });
 
 gulp.task('watch', function () {
-  gulp.watch('src/**/*.html', ['views']);
-  gulp.watch('src/**/*.png', ['images']);
-  gulp.watch('src/**/*.scss', ['styles']);
-  gulp.watch('src/**/*.js', ['scripts']);
+  gulp.watch('src/**/*.html', gulp.series('views'));
+  gulp.watch('src/**/*.png', gulp.series('images'));
+  gulp.watch('src/**/*.scss', gulp.series('styles'));
+  gulp.watch('src/**/*.js', gulp.series('scripts'));
 });
 
-gulp.task('default', () => new Promise(resolve => runSequence(config.debug ? ['build', 'watch', 'server'] : 'build')));
+gulp.task('default', gulp.series('build', gulp.parallel('watch', 'server')));
