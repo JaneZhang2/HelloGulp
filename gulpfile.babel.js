@@ -30,6 +30,7 @@ import path from 'path';
 import runSequence from 'run-sequence';
 import {Server} from 'karma';
 import conventionalChangelog from 'gulp-conventional-changelog';
+var bump = require('gulp-bump');
 
 //var conventionalChangelog = require('gulp-conventional-changelog');
 
@@ -159,10 +160,14 @@ gulp.task('watch', function () {
 
 gulp.task('changelog', function () {
   return gulp.src('CHANGELOG.md')
-    .pipe(conventionalChangelog({
-      // preset: 'angular'
-    }))
+    .pipe(conventionalChangelog())
     .pipe(gulp.dest('./'));
 });
+
+// gulp.task('bump', function () {
+//   gulp.src('./package.json')
+//     .pipe(bump({type: 'major'}))
+//     .pipe(gulp.dest('./'));
+// });
 
 gulp.task('default', () => new Promise(resolve => runSequence('build', 'watch', 'server', resolve)));
