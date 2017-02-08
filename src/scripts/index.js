@@ -1,10 +1,8 @@
-// export default{
-//   immediate: (cb) => {
-//     cb('foo', 'bar');
-//   },
-//   debounce: (cb) => {
-//     setTimeout(cb, 0)
-//   }
-// };
-
-document.write('hello world!');
+export default{
+  immediate: (cb) => {
+    cb('foo', 'bar');
+  },
+  debounce: (cb) => {
+    setTimeout(cb, 0);
+  }
+};
