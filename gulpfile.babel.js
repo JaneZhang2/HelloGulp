@@ -30,6 +30,7 @@ import conventionalChangelog from 'gulp-conventional-changelog';
 var bump = require('gulp-bump');
 import del from 'del';
 import gutil from 'gulp-util';
+import glob from 'glob';
 
 const {env} = gutil;
 const {environment = 'development'} = env;
@@ -117,19 +118,21 @@ gulp.task('vendors', () =>
 );
 
 gulp.task('scripts', gulp.series('eslint', 'vendors', () =>
-  browserify('src/scripts/index.js', {debug: config.debug, transform: 'babelify'})
-    .external(Object.keys(dependencies))
-    .bundle()
-    .pipe(exorcist(path.join(__dirname, 'dist/scripts/bundle.js.map')))
-    .pipe(source('scripts/bundle.js')) // gives streaming vinyl file object
-    .pipe(buffer()) // <----- convert from streaming to buffered vinyl file object
-    .pipe(gulpif(!config.debug, uglify())) // now gulp-uglify works
-    .pipe(gulpif(!config.debug, revReplace({manifest: gulp.src('dist/manifest.json', {allowEmpty: true})})))
-    .pipe(gulpif(!config.debug, rev()))
-    .pipe(gulp.dest('dist'))
-    .pipe(gulpif(!config.debug, rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true})))
-    .pipe(gulpif(!config.debug, gulp.dest('dist')))
-    .pipe(gulpif(config.debug, browserSync.stream()))
+  Promise.all(glob.sync('src/**/index.js').map((file) =>
+    browserify('src/scripts/index.js', {debug: config.debug, transform: 'babelify'})
+      .external(Object.keys(dependencies))
+      .bundle()
+      .pipe(exorcist(path.join(__dirname, 'dist/scripts/bundle.js.map')))
+      .pipe(source(file.replace(/^src\//, ''))) // gives streaming vinyl file object
+      .pipe(buffer()) // <----- convert from streaming to buffered vinyl file object
+      .pipe(gulpif(!config.debug, uglify())) // now gulp-uglify works
+      .pipe(gulpif(!config.debug, revReplace({manifest: gulp.src('dist/manifest.json', {allowEmpty: true})})))
+      .pipe(gulpif(!config.debug, rev()))
+      .pipe(gulp.dest('dist'))
+      .pipe(gulpif(!config.debug, rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true})))
+      .pipe(gulpif(!config.debug, gulp.dest('dist')))
+      .pipe(gulpif(config.debug, browserSync.stream())))
+  )
 ));
 
 gulp.task('lint', gulp.series('stylelint', 'eslint'));
