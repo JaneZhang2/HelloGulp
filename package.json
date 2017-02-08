@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "karma start",
-    "precommit": "gulp lint"
+    "precommit": "gulp lint && gulp test"
   },
   "keywords": [],
   "author": "",
