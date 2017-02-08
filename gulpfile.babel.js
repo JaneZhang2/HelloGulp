@@ -26,8 +26,6 @@ import {dependencies} from './package.json';
 import exorcist from 'exorcist';
 import path from 'path';
 import {Server} from 'karma';
-import conventionalChangelog from 'gulp-conventional-changelog';
-var bump = require('gulp-bump');
 import del from 'del';
 import gutil from 'gulp-util';
 import glob from 'glob';
@@ -137,7 +135,6 @@ gulp.task('scripts', gulp.series('eslint', 'vendors', () =>
 
 gulp.task('lint', gulp.series('stylelint', 'eslint'));
 
-
 gulp.task('test', function (done) {
   new Server({configFile: __dirname + '/karma.conf.js'}, done).start();
 });
@@ -157,17 +154,5 @@ gulp.task('server', () => {
   server.listen(8000);
   browserSync({proxy: 'localhost:8000'});
 });
-
-// gulp.task('changelog', () => {
-//   return gulp.src('CHANGELOG.md')
-//     .pipe(conventionalChangelog())
-//     .pipe(gulp.dest('./'));
-// });
-
-// gulp.task('bump', function () {
-//   gulp.src('./package.json')
-//     .pipe(bump({type: 'major'}))
-//     .pipe(gulp.dest('./'));
-// });
 
 gulp.task('default', gulp.series('build', 'watch', 'server'));
