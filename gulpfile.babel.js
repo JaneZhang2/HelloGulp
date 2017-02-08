@@ -137,14 +137,11 @@ gulp.task('scripts', gulp.series('eslint', 'vendors', () =>
 
 gulp.task('lint', gulp.series('stylelint', 'eslint'));
 
-//
-// gulp.task('test', function (done) {
-//   new Server({
-//     configFile: __dirname + '/karma.conf.js',
-//     singleRun: true
-//   }, done).start();
-// });
-//
+
+gulp.task('test', function (done) {
+  new Server({configFile: __dirname + '/karma.conf.js'}, done).start();
+});
+
 gulp.task('build', gulp.series('clean', 'images', 'fonts', 'vendors', 'styles', 'scripts', 'views'));
 
 gulp.task('watch', () => {
