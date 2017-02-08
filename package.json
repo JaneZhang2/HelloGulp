@@ -4,8 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "karma start",
-    "precommit": "echo \"todo...\""
+    "test": "gulp clean",
+    "precommit": "gulp htmllint",
+    "gulp": "./node_modules/gulp/bin/gulp.js"
   },
   "keywords": [],
   "author": "",
@@ -22,7 +23,7 @@
     "eslint-plugin-import": "^2.2.0",
     "exorcist": "^0.4.0",
     "express": "^4.14.1",
-    "gulp": "^3.9.1",
+    "gulp": "github:gulpjs/gulp#4.0",
     "gulp-add-src": "^0.2.0",
     "gulp-clean": "^0.3.2",
     "gulp-conventional-changelog": "^1.1.0",

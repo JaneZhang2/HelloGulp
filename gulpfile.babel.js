@@ -31,141 +31,160 @@ import runSequence from 'run-sequence';
 import {Server} from 'karma';
 import conventionalChangelog from 'gulp-conventional-changelog';
 var bump = require('gulp-bump');
+import del from 'del';
+import gutil from 'gulp-util';
 
 const {env} = util;
 const {environment = 'development'} = env;
 const config = require(`./configs/${environment}`);
 
-gulp.task('clean', () =>
-  gulp.src('dist', {read: false})
-    .pipe(clean())
-);
+gulp.task('clean', () => del('dist'));
 
-gulp.task('views', () =>
+gulp.task('htmllint', () =>
   gulp.src('src/**/*.html')
-    .pipe(htmllint())
-    .pipe(gulpif(config.minify, htmlmin({collapseWhitespace: true})))
-    .pipe(gulpif(config.revision, revReplace({manifest: gulp.src('dist/manifest.json')})))
-    .pipe(gulp.dest('dist'))
-    .pipe(gulpif(config.debug, browserSync.stream()))
+    .pipe(htmllint({failOnError: true}, (filepath, issues) => {
+      if (issues.length > 0) {
+        issues.forEach(issue => {
+          gutil.log(`${gutil.colors.cyan('[gulp-htmllint] ')}${gutil.colors.white(filepath + ' [' + issue.line + ',' + issue.column + ']: ')}${gutil.colors.red('(' + issue.code + ') ' + issue.msg)}`);
+        });
+
+        // process.exit(1);
+      }
+    }))
 );
 
-gulp.task('images', () =>
-  gulp.src('src/**/sprite.png')
-    .pipe(gulpif(config.minify, imagemin()))
-    .pipe(gulpif(config.revision, rev()))
-    .pipe(gulp.dest('dist'))
-    .pipe(gulpif(config.revision, rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true})))
-    .pipe(gulpif(config.revision, gulp.dest('dist')))
-    .pipe(gulpif(config.debug, browserSync.stream()))
-);
-
-gulp.task('fonts', () =>
-  gulp.src('src/**/*.{eot,svg,ttf,woff,woff2}')
-    .pipe(gulp.dest('dist'))
-    .pipe(gulpif(config.revision, rev()))
-    .pipe(gulp.dest('dist'))
-    .pipe(gulpif(config.revision, rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true})))
-    .pipe(gulpif(config.revision, gulp.dest('dist')))
-    .pipe(gulpif(config.debug, browserSync.stream()))
-);
-
-gulp.task('styles', () =>
+gulp.task('stylelint', () =>
   gulp.src('src/**/*.scss')
-    .pipe(gulpif(config.sourcemap, sourcemaps.init()))
     .pipe(postcss([stylelint(), reporter()], {syntax: syntax_scss}))
-    .pipe(sass({outputStyle: config.minify ? 'compressed' : 'nested'}).on('error', sass.logError))
-    .pipe(postcss([autoprefixer()]))
-    .pipe(postcss([
-      imageInliner({assetPaths: ['src']}),
-      sprites({
-        basePath: 'src',
-        stylesheetPath: 'src/styles',
-        spritePath: 'src/images'
-      })
-    ]))
-    .pipe(gulpif(config.revision, revReplace({manifest: gulp.src('dist/manifest.json')})))
-    .pipe(gulpif(config.revision, rev()))
-    .pipe(gulpif(config.sourcemap, sourcemaps.write('.')))
+);
+
+// gulp.task('eslint', () =>
+//   gulp.src('src/**/*.js')
+//     .pipe(eslint())
+//     .pipe(eslint.format())
+//     .pipe(eslint.failAfterError())
+// );
+//
+// //run-sequence
+//
+
+gulp.task('views', gulp.series('htmllint', () =>
+  gulp.src('src/**/*.html')
+    .pipe(gulpif(config.minify, htmlmin({collapseWhitespace: true})))
+    .pipe(gulpif(config.revision, revReplace({manifest: gulp.src('dist/manifest.json', {allowEmpty: true})}))).on('error', () => {
+  })
     .pipe(gulp.dest('dist'))
-    .pipe(gulpif(config.revision, rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true})))
-    .pipe(gulpif(config.revision, gulp.dest('dist')))
     .pipe(gulpif(config.debug, browserSync.stream()))
-);
-
-gulp.task('eslint', () =>
-  gulp.src('src/**/*.js')
-    .pipe(eslint())
-    .pipe(eslint.format())
-    .pipe(eslint.failAfterError())
-);
-
-gulp.task('scripts', () =>
-  browserify('src/scripts/index.js', {debug: config.debug, transform: 'babelify'})
-    .external(Object.keys(dependencies))
-    .bundle()
-    .pipe(exorcist(path.join(__dirname, 'dist/scripts/bundle.js.map')))
-    .pipe(source('scripts/bundle.js')) // gives streaming vinyl file object
-    .pipe(buffer()) // <----- convert from streaming to buffered vinyl file object
-    .pipe(gulpif(!config.debug, uglify())) // now gulp-uglify works
-    .pipe(gulpif(config.revision, revReplace({manifest: gulp.src('dist/manifest.json')})))
-    .pipe(gulpif(config.revision, rev()))
-    .pipe(gulp.dest('dist'))
-    .pipe(gulpif(config.revision, rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true})))
-    .pipe(gulpif(config.revision, gulp.dest('dist')))
-    .pipe(gulpif(config.debug, browserSync.stream()))
-);
-
-gulp.task('vendors', () =>
-  browserify()
-    .require(Object.keys(dependencies))
-    .bundle()
-    .pipe(source('scripts/vendors.js')) // gives streaming vinyl file object
-    .pipe(buffer()) // <----- convert from streaming to buffered vinyl file object
-    .pipe(gulpif(!config.debug, uglify())) // now gulp-uglify works
-    .pipe(gulpif(config.revision, revReplace({manifest: gulp.src('dist/manifest.json')})))
-    .pipe(gulpif(config.revision, rev()))
-    .pipe(gulp.dest('dist'))
-    .pipe(gulpif(config.revision, rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true})))
-    .pipe(gulpif(config.revision, gulp.dest('dist')))
-    .pipe(gulpif(config.debug, browserSync.stream()))
-);
-
-gulp.task('test', function (done) {
-  new Server({
-    configFile: __dirname + '/karma.conf.js',
-    singleRun: true
-  }, done).start();
-});
-
-gulp.task('build', () =>
-  new Promise(resolve => runSequence('clean', 'images', 'fonts', 'vendors', 'styles', 'scripts', 'views', resolve))
-);
-
-gulp.task('server', () => {
-  const server = express();
-  server.use(express.static('dist'));
-  server.listen(8000);
-  browserSync({proxy: 'localhost:8000'});
-});
-
-gulp.task('watch', function () {
-  gulp.watch('src/**/*.html', ['views']);
-  gulp.watch('src/**/*.png', ['images']);
-  gulp.watch('src/**/*.scss', ['styles']);
-  gulp.watch('src/**/*.js', ['scripts']);
-});
-
-gulp.task('changelog', function () {
-  return gulp.src('CHANGELOG.md')
-    .pipe(conventionalChangelog())
-    .pipe(gulp.dest('./'));
-});
-
-// gulp.task('bump', function () {
-//   gulp.src('./package.json')
-//     .pipe(bump({type: 'major'}))
+));
+//
+// gulp.task('images', () =>
+//   gulp.src('src/**/sprite.png')
+//     .pipe(gulpif(config.minify, imagemin()))
+//     .pipe(gulpif(config.revision, rev()))
+//     .pipe(gulp.dest('dist'))
+//     .pipe(gulpif(config.revision, rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true})))
+//     .pipe(gulpif(config.revision, gulp.dest('dist')))
+//     .pipe(gulpif(config.debug, browserSync.stream()))
+// );
+//
+// gulp.task('fonts', () =>
+//   gulp.src('src/**/*.{eot,svg,ttf,woff,woff2}')
+//     .pipe(gulp.dest('dist'))
+//     .pipe(gulpif(config.revision, rev()))
+//     .pipe(gulp.dest('dist'))
+//     .pipe(gulpif(config.revision, rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true})))
+//     .pipe(gulpif(config.revision, gulp.dest('dist')))
+//     .pipe(gulpif(config.debug, browserSync.stream()))
+// );
+//
+// gulp.task('styles', ['stylelint'], () =>
+//   gulp.src('src/**/*.scss')
+//     .pipe(gulpif(config.sourcemap, sourcemaps.init()))
+//     .pipe(sass({outputStyle: config.minify ? 'compressed' : 'nested'}).on('error', sass.logError))
+//     .pipe(postcss([
+//       autoprefixer(),
+//       imageInliner({assetPaths: ['src']}),
+//       sprites({
+//         basePath: 'src',
+//         stylesheetPath: 'src/styles',
+//         spritePath: 'src/images'
+//       })
+//     ]))
+//     .pipe(gulpif(config.revision, revReplace({manifest: gulp.src('dist/manifest.json')})))
+//     .pipe(gulpif(config.revision, rev()))
+//     .pipe(gulpif(config.sourcemap, sourcemaps.write('.')))
+//     .pipe(gulp.dest('dist'))
+//     .pipe(gulpif(config.revision, rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true})))
+//     .pipe(gulpif(config.revision, gulp.dest('dist')))
+//     .pipe(gulpif(config.debug, browserSync.stream()))
+// );
+//
+// gulp.task('scripts', () =>
+//   browserify('src/scripts/index.js', {debug: config.debug, transform: 'babelify'})
+//     .external(Object.keys(dependencies))
+//     .bundle()
+//     .pipe(exorcist(path.join(__dirname, 'dist/scripts/bundle.js.map')))
+//     .pipe(source('scripts/bundle.js')) // gives streaming vinyl file object
+//     .pipe(buffer()) // <----- convert from streaming to buffered vinyl file object
+//     .pipe(gulpif(!config.debug, uglify())) // now gulp-uglify works
+//     .pipe(gulpif(config.revision, revReplace({manifest: gulp.src('dist/manifest.json')})))
+//     .pipe(gulpif(config.revision, rev()))
+//     .pipe(gulp.dest('dist'))
+//     .pipe(gulpif(config.revision, rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true})))
+//     .pipe(gulpif(config.revision, gulp.dest('dist')))
+//     .pipe(gulpif(config.debug, browserSync.stream()))
+// );
+//
+// gulp.task('vendors', () =>
+//   browserify()
+//     .require(Object.keys(dependencies))
+//     .bundle()
+//     .pipe(source('scripts/vendors.js')) // gives streaming vinyl file object
+//     .pipe(buffer()) // <----- convert from streaming to buffered vinyl file object
+//     .pipe(gulpif(!config.debug, uglify())) // now gulp-uglify works
+//     .pipe(gulpif(config.revision, revReplace({manifest: gulp.src('dist/manifest.json')})))
+//     .pipe(gulpif(config.revision, rev()))
+//     .pipe(gulp.dest('dist'))
+//     .pipe(gulpif(config.revision, rev.manifest({base: 'dist', path: 'dist/manifest.json', merge: true})))
+//     .pipe(gulpif(config.revision, gulp.dest('dist')))
+//     .pipe(gulpif(config.debug, browserSync.stream()))
+// );
+//
+// gulp.task('test', function (done) {
+//   new Server({
+//     configFile: __dirname + '/karma.conf.js',
+//     singleRun: true
+//   }, done).start();
+// });
+//
+// gulp.task('build', () =>
+//   new Promise(resolve => runSequence('clean', 'images', 'fonts', 'vendors', 'styles', 'scripts', 'views', resolve))
+// );
+//
+// gulp.task('watch', () => {
+//   gulp.watch('src/**/*.html', ['views']);
+//   gulp.watch('src/**/*.png', ['images']);
+//   gulp.watch('src/**/*.scss', ['styles']);
+//   gulp.watch('src/**/*.js', ['scripts']);
+// });
+//
+// gulp.task('server', () => {
+//   const server = express();
+//   server.use(express.static('dist'));
+//   server.listen(8000);
+//   browserSync({proxy: 'localhost:8000'});
+// });
+//
+// gulp.task('changelog', () => {
+//   return gulp.src('CHANGELOG.md')
+//     .pipe(conventionalChangelog())
 //     .pipe(gulp.dest('./'));
 // });
-
-gulp.task('default', () => new Promise(resolve => runSequence('build', 'watch', 'server', resolve)));
+//
+// // gulp.task('bump', function () {
+// //   gulp.src('./package.json')
+// //     .pipe(bump({type: 'major'}))
+// //     .pipe(gulp.dest('./'));
+// // });
+//
+// gulp.task('default', () => new Promise(resolve => runSequence('build', 'watch', 'server', resolve)));
