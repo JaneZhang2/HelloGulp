@@ -155,4 +155,4 @@ gulp.task('server', () => {
   browserSync({proxy: 'localhost:8000'});
 });
 
-gulp.task('default', gulp.series('build', 'watch', 'server'));
+gulp.task('default', gulp.series('build', gulp.parallel('watch', 'server')));
